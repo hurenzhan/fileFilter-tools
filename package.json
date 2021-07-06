@@ -1,0 +1,19 @@
+{
+  "name": "filefilter-tools",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "bin": {
+    "f": "./src/cli.ts"
+  },
+  "scripts": {
+    "start": "ts-node ./src/cli.ts",
+    "build": "tsc"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@types/node": "^16.0.0",
+    "commander": "^7.2.0",
+    "inquirer": "^8.1.1",
+    "typescript": "^4.3.4"
+  }
+}
