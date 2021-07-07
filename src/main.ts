@@ -2,7 +2,8 @@ import {OptionValues} from "commander";
 import {OPTION_TYPE_KEY, optionTypeName, promptConfigs, promptIcons} from "./config";
 
 const inquirer = require('inquirer');
-import {stat} from 'fs';
+import {stat, statSync} from 'fs';
+import {red, green, yellow} from 'chalk';
 
 interface ActionMapType {
     [key: string]: Function;
@@ -31,7 +32,21 @@ class MainHandle {
             targetType: this.targetTypeAction,
         }
         this.isErrorPath = false;
-        if (this.lackConditions.length) this.showPrompt();
+        const path: string = this.config.path;
+        // 如果有路径，要先校验是否正确，错误让用户重新输入
+        if (path) {
+            const passed = this.handleCheckPath(path);
+            if (!passed) {
+                this.isErrorPath = true;
+                this.pathAction();
+            }
+            if (passed) {
+                // 参数不完整，展示操作列表
+                if (this.lackConditions.length) this.showPrompt();
+            }
+        } else {
+            this.showPrompt();
+        }
     }
 
     // 如果缺少参数据，弹出配置参数列表设定
@@ -39,12 +54,12 @@ class MainHandle {
         //  处理列表名称，添加注释
         const getConfigName = (value: string) => {
             const typeName = optionTypeName[value];
-            return typeName ? `${value}（${typeName}）` : value;
+            return green(typeName ? `${value}（${typeName}）` : value);
         }
         inquirer.prompt({
             type: 'list',
             name: 'index',
-            message: '请配置参数',
+            message: yellow('请配置参数：'),
             choices: [
                 ...promptConfigs.map((item) => {
                     const configValue = this.config[item.value];
@@ -67,23 +82,38 @@ class MainHandle {
         this.showPrompt();
     }
 
+    // 校验路径是否正确
+    private handleCheckPath = (path: string) => {
+        const sendError = () => {   //  让用户重新输入
+            this.isErrorPath = true;
+            this.config.path = path;
+            return false;
+        }
+        // 不是文件夹或者路径错误，直接让用户重新输入
+        try {
+            const stat = statSync(path);
+            if (!stat.isDirectory()) return sendError();
+            this.isErrorPath = false;
+            return true;
+        } catch {
+            return sendError();
+        }
+    }
+
     // 路径配置
     private pathAction = () => {
         inquirer.prompt({
             type: 'input',
-            message: this.isErrorPath ?  '不是有效目录路径，请重新输入' : '请输入文件夹路径:',
+            message: this.isErrorPath ? red('不是有效目录路径，请重新输入：') : yellow('请输入文件夹路径：'),
             name: 'path',
-            default: this.config.path
+            default: this.isErrorPath ? red(this.config.path) : this.config.path,
+            validate: (path: string) => {
+                const passed = this.handleCheckPath(path);
+                if (passed) return true;
+                return red('不是有效的目录路径，请重新输入');
+            }
         }).then((answer: { path: string }) => {
-            stat(answer.path, (err, stat) => {
-                // 读取不到或者不是目录，重新让用户输入
-                if (err) {
-                    this.isErrorPath = true;
-                    this.pathAction();
-                    return;
-                }
-                this.updateConfigList(answer);
-            });
+            this.updateConfigList(answer);
         })
     }
 
@@ -92,7 +122,7 @@ class MainHandle {
         inquirer.prompt({
             type: 'list',
             name: 'action',
-            message: '请选择操作',
+            message: yellow('请选择操作：'),
             choices: [
                 {name: optionTypeName[OPTION_TYPE_KEY.DELETE], value: OPTION_TYPE_KEY.DELETE},
                 {name: optionTypeName[OPTION_TYPE_KEY.EXTRACT], value: OPTION_TYPE_KEY.EXTRACT},
@@ -108,9 +138,9 @@ class MainHandle {
         inquirer.prompt({
             type: 'input',
             name: 'filter',
-            message: '请选输入筛选条件：',
-            default: this.config.filter
-        }).then((answer: { operate: string }) => {
+            message: yellow('请选输入筛选条件：'),
+            default: this.config.filter,
+        }).then((answer: { filter: string }) => {
             this.updateConfigList(answer);
         })
     }
@@ -120,7 +150,7 @@ class MainHandle {
         inquirer.prompt({
             type: 'list',
             name: 'match',
-            message: '请选择匹配模式',
+            message: yellow('请选择匹配模式：'),
             choices: [
                 {name: optionTypeName[OPTION_TYPE_KEY.INCLUDES], value: OPTION_TYPE_KEY.INCLUDES},
                 {name: optionTypeName[OPTION_TYPE_KEY.EQUAL], value: OPTION_TYPE_KEY.EQUAL},
@@ -137,7 +167,7 @@ class MainHandle {
         inquirer.prompt({
             type: 'list',
             name: 'targetType',
-            message: '请选择操作目标类型',
+            message: yellow('请选择操作目标类型：'),
             choices: [
                 {name: optionTypeName[OPTION_TYPE_KEY.FILE], value: OPTION_TYPE_KEY.FILE},
                 {name: optionTypeName[OPTION_TYPE_KEY.DIRECTORY], value: OPTION_TYPE_KEY.DIRECTORY},
