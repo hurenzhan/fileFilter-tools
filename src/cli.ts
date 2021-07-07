@@ -1,17 +1,16 @@
 #!/usr/bin/env ts-node
 
-import config from "./config";
-import {isContext} from "vm";
+import program from 'commander';
+import {optionConfig} from "./config";
+const {version} = require('../package.json');
+import MainHandle from "./main";
+// const vm = require("vm");
 
-const program = require('commander');
-const pkg = require('../package.json');
-const vm = require("vm");
-
-program.version(pkg.version)
+program.version(version)
 
 const usages: string[] = [];
 // 添加配置信息
-config.forEach(item => {
+optionConfig.forEach(item => {
     usages.push(item.usage);
     program.option(item.option, item.description, item.defaultValue)
 });
@@ -30,5 +29,6 @@ const ops = program.opts();
 // 缺少参数列表
 // let lackConditions = [];
 // lackConditions = Object.entries(ops)
-console.log(ops);
+// console.log(ops);
 // console.log(vm.isContext('rrr'));
+new MainHandle(ops);
